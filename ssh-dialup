@@ -1,0 +1,84 @@
+#!/usr/bin/python
+
+import csv
+import datetime
+import errno
+import os
+import os.path
+import socket
+import subprocess
+import sys
+
+FINGER_PORT = 79
+
+def finger(user, host):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((host, FINGER_PORT))
+    sock.sendall(user)
+    data = ""
+    new_data = True
+    while new_data:
+        new_data = sock.recv(4096)
+        data += new_data
+    sock.close()
+    return data
+
+def current_dialups(cat=None):
+    data = finger("dialup", "finch.mit.edu")
+    dialups = []
+    for line in data.splitlines():
+        dialup = {}
+        dialup['ip'], dialup['weight'], dialup['cat'], dialup['name'], dialup['pref'] = line.split()
+        dialup['pref'] = int(dialup['pref'])
+        if cat is None or cat == dialup['cat']:
+            dialups.append(dialup)
+    return dialups
+
+def write_dialups(dialup_file, dialups, new_dialup):
+    # Save only the last four dialups plus this one
+    if len(dialups) > 4:
+        dialups = dialups[-4:]
+    with open(dialup_file, 'w') as writer_fd:
+        writer = csv.DictWriter(writer_fd, fieldnames=['dialup', 'time'])
+        writer.writeheader()
+        dialups.append(dict(
+            dialup=new_dialup,
+            time=datetime.datetime.now().isoformat(),
+        ))
+        writer.writerows(dialups)
+
+def on_client():
+    user = os.environ['ATHENA_USER']
+    dialup_file = "/mit/%s/.preferred-dialup" % (user, )
+
+    dialups = []
+    try:
+        with open(dialup_file, 'r') as reader_fd:
+            reader = csv.DictReader(reader_fd)
+            for line in reader:
+                dialups.append(line)
+    except IOError, e:
+        if e.errno == errno.ENOENT:
+            pass
+        else:
+            raise
+
+    if dialups:
+        new_dialup = dialups[-1]['dialup']
+    else:
+        cur_dialups = current_dialups("LINUX")
+        dialups_sorted = sorted(cur_dialups, key=lambda x: x['pref'])
+        new_dialup = dialups_sorted[0]['name'] + ".mit.edu"
+
+    write_dialups(dialup_file, dialups, new_dialup)
+
+    print "Connecting to %s as %s..." % (new_dialup, user, )
+    ssh_args = ['/usr/bin/ssh', new_dialup, '-l', user, ] + sys.argv[1:]
+    proc = subprocess.Popen(ssh_args)
+    proc.wait()
+
+def on_dialup():
+    pass
+
+if __name__ == '__main__':
+    on_client()
