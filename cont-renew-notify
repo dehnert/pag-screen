@@ -20,10 +20,11 @@ case "$KRB5CCNAME" in
     # We have a DIR: cache. Assume we should renew everything
     DIR:/*) allcaches=true;;
 esac
-while getopts "fdh" options; do
+while getopts "fdS:h" options; do
     case $options in
         f ) allcaches=false;;
         d ) allcaches=true;;
+        S ) screenname="$OPTARG";;
         h ) echo "$usage"; exit 0;;
         \? ) echo "$usage"
             exit 1;;

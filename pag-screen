@@ -119,7 +119,7 @@ if [ ! -x "$contrenew" ]; then
     zwrite "${ATHENA_USER:-$USER}" -d -m "$0: cont-renew-notify doesn't exist on `hostname`... Not doing renewals"
     contrenew=/bin/true
 fi
-nohup $contrenew < /dev/null > /dev/null 2> /dev/null &
+nohup $contrenew -S "$screenname" < /dev/null > /dev/null 2> /dev/null &
 
 # Name the screen so we can reattach the right screen later.
 $screen -S "$screenname" $screenargs
