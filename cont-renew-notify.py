@@ -98,9 +98,9 @@ class ContRenewNotify(object):
             subprocess.check_call(['kinit', '-R', '-c', name])
             renewed = True
         except subprocess.CalledProcessError as e:
-            print("    Failed to renew tickets for %s on %s" % (name, host))
+            print("    Failed to renew tickets in %s on %s" % (name, host))
             renewed = False
-            message = "Your tickets for %s on %s could not be renewed" % (name, host)
+            message = "Your tickets in %s on %s could not be renewed" % (name, host)
 
         try:
             env = {'LC_ALL':'C', 'LC_TIME':'C'}
@@ -114,7 +114,11 @@ class ContRenewNotify(object):
                     expire_time = datetime.datetime.strptime(expire_str, '%m/%d/%y %H:%M')
                     if (expire_time - now) < datetime.timedelta(hours=24):
                         expire = expire_time
-                        message = "Your tickets for %s on %s will expire within the next 24 hours.\nRun \"kinit -l7d\" to get new renewable tickets." % (principal, host)
+                        if expire_time < now:
+                            days = (now - expire_time).days
+                            message = "Your tickets for %s on %s expired %d days ago." % (principal, host, days)
+                        else:
+                            message = "Your tickets for %s on %s will expire within the next 24 hours.\nRun \"kinit -l7d\" to get new renewable tickets." % (principal, host)
                     elif renewed:
                         message = None
                 else:
